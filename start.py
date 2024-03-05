@@ -2,7 +2,7 @@ import time
 from typing import List
 from BaseType import Action, Address
 from Console import ConsoleProcess
-from Server import Server
+from Connect import SocketConnect, SocketServer
 
 kof_addresses = {
     "p1_health": Address('0x108239', 's8'),#0~103
@@ -29,27 +29,29 @@ kof_actions = {
 }
 
 
-server = Server(addresses=kof_addresses)
+server = SocketServer()
 
-client_num = 2
+client_num = 28
 for i in range(client_num):
-    console = ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.connect.port)
+    console = ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, render=i==0)
 
-while server.client_num < client_num:
-    time.sleep(0.01)
+client_sockets = server.accept_connects(client_num)
+
+mem_address_buff = '|'.join([f'{name},{addr.address},{addr.type}' for name, addr in kof_addresses.items()])
+for client in client_sockets:
+    client.send('ADDR', mem_address_buff)
 
 frame = 0
 while True:
     frame += 1
-    all_mem_data = server.read_mem_data()
-    all_actions:List[List[Action]] = [[]]*server.client_num
-    # for i, mem_data in enumerate(all_mem_data):
-    #     all_actions[i] = actions = []
-    #     if i%2==0:
-    #         if (frame//5)%2==0:
-    #             actions.extend(kof_actions['a'])
-    #     else:
-    #         if (frame//10)%2==0:
-    #             actions.extend(kof_actions['a'])
+    for client in client_sockets:
+        msgs = client.recive()
+        for msgid, content in msgs:
+            if msgid == 'MDAT':
+                actions = []
+                if (frame//5)%2==0:
+                    actions.extend(kof_actions['a'])
+                action_buff = '|'.join([f'{act.port}+{act.field}' for act in actions])
+                client.send('ACTN', action_buff)
 
-    server.send_actions(all_actions)
+print('connected')
