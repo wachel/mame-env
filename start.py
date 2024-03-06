@@ -28,30 +28,36 @@ kof_actions = {
     # 'a':[Action(':edge:joy:JOY2','P2 B')],
 }
 
+if __name__ == '__main__':
 
-server = SocketServer()
+    server = SocketServer()
 
-client_num = 28
-for i in range(client_num):
-    console = ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, render=i==0)
+    client_num = 2
+    consoles = []
+    for i in range(client_num):
+        consoles.append(ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, render=i==0))
 
-client_sockets = server.accept_connects(client_num)
+    client_sockets = server.accept_connects(client_num)
 
-mem_address_buff = '|'.join([f'{name},{addr.address},{addr.type}' for name, addr in kof_addresses.items()])
-for client in client_sockets:
-    client.send('ADDR', mem_address_buff)
-
-frame = 0
-while True:
-    frame += 1
+    mem_address_buff = '|'.join([f'{name},{addr.address},{addr.type}' for name, addr in kof_addresses.items()])
     for client in client_sockets:
-        msgs = client.recive()
-        for msgid, content in msgs:
-            if msgid == 'MDAT':
-                actions = []
-                if (frame//5)%2==0:
-                    actions.extend(kof_actions['a'])
-                action_buff = '|'.join([f'{act.port}+{act.field}' for act in actions])
-                client.send('ACTN', action_buff)
+        client.send('ADDR', mem_address_buff)
 
-print('connected')
+    frame = 0
+    while True:
+        frame += 1
+
+        client_sockets2 = client_sockets.copy()
+        while len(client_sockets2) > 0:
+            for i, x in reversed(list(enumerate(client_sockets2))):
+                msgs = client.recive()
+                for msgid, content in msgs:
+                    if msgid == 'DATA':
+                        actions = []
+                        if (frame//5)%2==0:
+                            actions.extend(kof_actions['a'])
+                        action_buff = '|'.join([f'{act.port}+{act.field}' for act in actions])
+                        client.send('ACTN', action_buff)
+                        del client_sockets2[i]
+
+    print('connected')

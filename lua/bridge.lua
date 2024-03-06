@@ -25,8 +25,10 @@ local socket = emu.file("rw")
 socket:open("socket." .. os.getenv("SERVER_IP") .. ":" .. os.getenv("SERVER_PORT"))
 
 MsgID_AddressInfo = "ADDR"
-MsgID_MemoryData = "MDAT"
+MsgID_MemoryData = "DATA"
 MsgID_Action = "ACTN"
+MsgID_WriteMemoryValue = "WrMV"
+MsgID_ExecuteLuaString = "ExLS"
 
 local function send(msgid, content)
     socket:write(string.pack("c4I4", msgid, string.len(content)) .. content)
@@ -34,7 +36,10 @@ end
 
 local current_buffer = ""
 local function receive()
-    current_buffer = current_buffer .. socket:read(1024)
+    repeat
+        local read = socket:read(100)
+        current_buffer = current_buffer .. read
+    until #read == 0
     if string.len(current_buffer) >= 8 then
         local msgid,len = string.unpack("c4I4", current_buffer)
         if string.len(current_buffer) >= 8 + len then
@@ -47,8 +52,7 @@ local function receive()
 end
 
 local mem_address = {}
-local function read_mem_address(content)
-    log("read_mem_address")
+local function set_mem_address(content)
     local map = {
         u8 = {read_func="read_u8", format = "I1"},
         s8 = {read_func="read_i8", format = "i1"},
@@ -59,6 +63,23 @@ local function read_mem_address(content)
         local name, address, fmt = string.match(addr_info, "([^,]+),([^,]+),([^,]+)")
         mem_address[name] = {address = tonumber(address), read_func=map[fmt].read_func, format=map[fmt].format}
     end
+end
+
+local function write_memory(content)
+    local map = {
+        u8 =  "write_u8",
+        s8 =  "write_i8",
+        u16 = "write_u16",
+        s16 = "write_i16",
+    }
+    for value_info in string.gmatch(content, "[^|]+") do
+        local address, fmt, value = string.match(value_info, "([^,]+),([^,]+),([^,]+)")
+        mem[map[fmt]](mem, tonumber(address), tonumber(value))
+    end
+end
+
+local function execute_lua_string(content)
+    loadstring(content)()
 end
 
 --send observation data to server
@@ -91,18 +112,22 @@ local function process_frame_done()
     msgid, content = receive()
     while true do
         if msgid == MsgID_AddressInfo then
-            read_mem_address(content)
+            set_mem_address(content)
             send_mem_data()
+        elseif msgid == MsgID_WriteMemoryValue then
+            write_memory(content)
+        elseif msgid == MsgID_ExecuteLuaString then
+            execute_lua_string(content)
         elseif msgid == MsgID_Action then--apply input
             for port_field in string.gmatch(content, "[^|]+") do
                 local port, field = string.match(port_field, "(.-)%+(.+)")
-                --log(port,field)
                 ioport.ports[port].fields[field]:set_value(1)
                 table.insert(releaseQueue, {port, field}); --record for release next frame
             end
             send_mem_data()
             break
         end
+        --pipe:read(1)
         msgid, content = receive()
     end
 end
