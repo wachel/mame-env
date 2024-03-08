@@ -1,5 +1,3 @@
-local json = require("json")
-
 function log(...)
     local args = {...}
     local message = "[lua]"
@@ -9,25 +7,14 @@ function log(...)
     print(message)
 end
 
-local function log_actions()
-    local ioport = manager.machine.ioport
-    for portkey,port in pairs(ioport.ports) do 
-        for filedkey,field in pairs(port.fields) do 
-            log("port=" .. portkey .. ";field=" .. filedkey) 
-        end
-    end
-end
-
---log_actions()
-
 --connect to server
 local socket = emu.file("rw")
 socket:open("socket." .. os.getenv("SERVER_IP") .. ":" .. os.getenv("SERVER_PORT"))
 
 MsgID_AddressInfo = "ADDR"
 MsgID_MemoryData = "DATA"
-MsgID_Action = "ACTN"
-MsgID_WriteMemoryValue = "WrMV"
+MsgID_Actions = "ACTS"
+MsgID_WriteMemoryValue = "WMem"
 MsgID_ExecuteLuaString = "ExLS"
 
 local function send(msgid, content)
@@ -93,8 +80,6 @@ local function send_mem_data()
     send(MsgID_MemoryData, binary_string)
 end
 
--- send(MsgID_AddressInfo, "")
-
 releaseQueue = {}
 
 local function process_frame_done()
@@ -103,8 +88,8 @@ local function process_frame_done()
 
     --release input
     for i=1,#releaseQueue do
-        local port,field = releaseQueue[i][1],releaseQueue[i][2];
-        ioport.ports[port].fields[field]:set_value(0);
+        local tag,mask = releaseQueue[i][1],releaseQueue[i][2];
+        ioport.ports[tag]:field(mask):set_value(0);
     end;
     releaseQueue = {};
 
@@ -118,11 +103,11 @@ local function process_frame_done()
             write_memory(content)
         elseif msgid == MsgID_ExecuteLuaString then
             execute_lua_string(content)
-        elseif msgid == MsgID_Action then--apply input
-            for port_field in string.gmatch(content, "[^|]+") do
-                local port, field = string.match(port_field, "(.-)%+(.+)")
-                ioport.ports[port].fields[field]:set_value(1)
-                table.insert(releaseQueue, {port, field}); --record for release next frame
+        elseif msgid == MsgID_Actions then--apply input
+            for tag_mask in string.gmatch(content, "[^|]+") do
+                local tag, mask = string.match(tag_mask, "(.-)%+(.+)")
+                ioport.ports[tag]:field(mask):set_value(1)
+                table.insert(releaseQueue, {tag, mask}); --record for release next frame
             end
             send_mem_data()
             break

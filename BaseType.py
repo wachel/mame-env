@@ -12,7 +12,7 @@ class Address:
         self.address = address
         self.type = type
 
-class Action(object):
-    def __init__(self, port, field):
-        self.port = port
-        self.field = field
+class IOPort(object):
+    def __init__(self, tag, mask):
+        self.tag = tag
+        self.mask = mask
