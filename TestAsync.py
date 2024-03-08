@@ -7,7 +7,25 @@ async def count():
     await asyncio.sleep(1)
     print("Two")
 
+async def get_num():
+    return 999
+
+async def handle_echo(reader, writer):
+    print('client connect')
+
+async def start_server():
+    server = await asyncio.start_server(handle_echo, '127.0.0.1', 5555)
+    addr = server.sockets[0].getsockname()
+    print(f'Serving on {addr}')
+    server_task = asyncio.create_task(server.serve_forever())
+
 async def main():
-    await asyncio.gather(*[count() for i in range(3)])
+    await start_server()
+
+    print(await get_num())
+
+    print('aaaa')
+    await asyncio.sleep(100)
 
 asyncio.run(main())
+
