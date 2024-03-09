@@ -1,2 +1,4 @@
 roms/*.zip
 *.pyc
+build/
+mame_env.egg-info/
