@@ -1,14 +1,19 @@
 import asyncio
 import struct
 from typing import Dict, List, Tuple, Union
-from BaseType import IOPort, Address
+from .BaseType import IOPort, Address
 
 fmt_char = {'u8': 'B','u16':'H','u32':'I','s8': 'b','s16':'h','s32':'i'}
 
 class AsyncClient():
-    def __init__(self, reader:asyncio.StreamReader, writer:asyncio.StreamWriter):
+    def __init__(self, index, reader:asyncio.StreamReader, writer:asyncio.StreamWriter):
         self.reader = reader
         self.writer = writer
+        self.index = index
+    
+    async def step(self, actions):
+        self.send_actions(actions)
+        return self.read_data()
 
     def send_buffer(self, msgID:str, content:bytes):
         assert(len(msgID)==4)
@@ -24,14 +29,13 @@ class AsyncClient():
 
     async def reader_read_length(self, length):
         received_data = bytearray()
-        if length > 0:
-            while True:
-                data = await self.reader.read(length)
-                if not data: #连接断开
-                    break
-                received_data.extend(data)
-                if len(received_data) >= length:
-                    break
+        while len(received_data) < length:
+            data = await self.reader.read(length - len(received_data))
+            if not data: #连接断开
+                break
+            received_data.extend(data)
+            if len(received_data) >= length:
+                break
         return received_data
 
     async def read_data(self):

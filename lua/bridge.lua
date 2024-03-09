@@ -48,7 +48,7 @@ local function set_mem_address(content)
     }
     for addr_info in string.gmatch(content, "[^|]+") do
         local name, address, fmt = string.match(addr_info, "([^,]+),([^,]+),([^,]+)")
-        mem_address[name] = {address = tonumber(address), read_func=map[fmt].read_func, format=map[fmt].format}
+        table.insert(mem_address, {name = name, address = tonumber(address), read_func=map[fmt].read_func, format=map[fmt].format})
     end
 end
 
@@ -73,7 +73,7 @@ end
 local function send_mem_data()
     local mem = manager.machine.devices[":maincpu"].spaces["program"]
     local binary_string = ""
-    for key, addr_info in pairs(mem_address) do
+    for i, addr_info in ipairs(mem_address) do
         local value = mem[addr_info.read_func](mem, addr_info.address)
         binary_string = binary_string .. string.pack(addr_info.format, value)
     end

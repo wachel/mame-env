@@ -1,12 +1,17 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 import time
 from typing import List
-from BaseType import IOPort, Address
-from Console import ConsoleProcess
-from Client import AsyncClient, Client
-from Server import AsyncServer, SocketServer
+from mame_env.Console import ConsoleProcess
+from mame_env.Client import AsyncClient
+from mame_env.Server import AsyncServer
+from mame_env.BaseType import Address, IOPort, StepAction
 import asyncio
 
-kof_addresses = {
+addresses = {
+    "inited":Address("0x100004", 'u16'),# initialized if value is 0x24CA
     "p1_health": Address('0x108239', 's8'),#0~103
     "p2_health": Address('0x108439', 's8'),
     "p1_direction": Address('0x108131', 's8'),#right=1，left=0
@@ -29,9 +34,9 @@ kof_addresses = {
     "p2_powercount":Address("0x10845e",'u8'),
     "p1_character":Address("0x108171",'u8'),
     "p2_character":Address("0x108371",'u8'),
-
 }
-class KofIOPorts:
+
+class IOPorts:
     START1 = IOPort(tag=":edge:joy:START", mask=1)
     START2 = IOPort(tag=":edge:joy:START", mask=4)
     COIN1 = IOPort(tag=":AUDIO_COIN", mask=1)
@@ -55,35 +60,44 @@ class KofIOPorts:
     P2_BUTTON3 = IOPort(tag=":edge:joy:JOY2", mask=64)
     P2_BUTTON4 = IOPort(tag=":edge:joy:JOY2", mask=128)
 
+start_action_sequence:List[StepAction] = [
+    #start game
+    StepAction(20, [IOPorts.COIN1]),
+    StepAction(20, [IOPorts.START1]),
+    StepAction(20, [IOPorts.P1_BUTTON1]),
+    StepAction(20, [IOPorts.P1_BUTTON1]),
+    StepAction(180, [IOPorts.P1_BUTTON1]),
+    StepAction(20, [IOPorts.P1_BUTTON1]),
+    #start select hero
+    StepAction(10, [IOPorts.P1_BUTTON1]),
+    StepAction(10, [IOPorts.P1_BUTTON1]),
+    StepAction(10, [IOPorts.P1_BUTTON1]),
+    #start order
+    StepAction(350, [IOPorts.P1_BUTTON1]),
+    StepAction(10, [IOPorts.P1_BUTTON1]),
+    StepAction(10, [IOPorts.P1_BUTTON1]),
+]
+
 class Kof98Env():
     def __init__(self,client:AsyncClient):
         self.client = client
-        self.client.send_memory_address(kof_addresses)
 
-    async def do_start_commands(self):
-        for i in range(2000):
-            await self.client.read_data()
-            await asyncio.sleep(0)
+    async def start(self):
+        self.client.send_memory_address(addresses)
+        await self.do_start_steps(start_action_sequence)
+
+    async def do_start_steps(self, steps:List[StepAction]):
+        while True:
+            data = await self.client.read_data()
             self.client.send_actions([])
-        self.client.send_actions([KofIOPorts.COIN1])
-        self.client.send_actions([KofIOPorts.COIN1])
-        self.client.send_actions([KofIOPorts.COIN1])
-        for i in range(100):
-            await self.client.read_data()
-            self.client.send_actions([])
-        self.client.send_actions([KofIOPorts.START1])
-        self.client.send_actions([KofIOPorts.START1])
-        self.client.send_actions([KofIOPorts.START1])
-        for i in range(100):
-            await self.client.read_data()
-            self.client.send_actions([])
-        self.client.send_actions([KofIOPorts.P1_BUTTON1])
-        self.client.send_actions([KofIOPorts.P1_BUTTON1])
-        for i in range(10):
-            await self.client.read_data()
-            self.client.send_actions([])
-        self.client.send_actions([KofIOPorts.P1_BUTTON1])
-        self.client.send_actions([KofIOPorts.P1_BUTTON1])
+            if data['inited'] == 0x24CA:
+                break
+        for step in steps:
+            for i in range(step.wait_frames):
+                data = await self.client.read_data()
+                self.client.send_actions([])
+            data = await self.client.read_data()
+            self.client.send_actions(step.actions)
 
     def step(self, action):
         self.client.send_actions([])
@@ -98,30 +112,31 @@ class Kof98Env():
         pass
 
 async def main():
+
+    # start server
     server = AsyncServer()
     await server.start()
 
-    client_num = 1
+    client_num = 2
 
-    consoles = []
+    # start all console
     for i in range(client_num):
-        consoles.append(ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, render=True))
+        ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=True)
 
+    # wait console connect to server
     clients = await server.wait_clients(client_num)
-    print('all clients connected')
 
     envs:List[Kof98Env] = []
     for client in clients:
-        client.send_memory_address(kof_addresses)
-        envs.append(Kof98Env(client))
-
-
-    await asyncio.gather(*[env.do_start_commands() for env in envs])
+        env = Kof98Env(client)
+        envs.append(env)
+    
+    await asyncio.gather(*[env.start() for env in envs])
 
     while True:
-        await asyncio.gather(*[client.read_data() for client in clients])
+        await asyncio.gather(*[env.client.read_data() for env in envs])
         for env in envs:
-            envs[i].step([])
+            env.step([])
 
 
 if __name__ == '__main__':
