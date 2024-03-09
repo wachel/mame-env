@@ -9,6 +9,7 @@ from mame_env.Client import AsyncClient
 from mame_env.Server import AsyncServer
 from mame_env.BaseType import Address, IOPort, StepAction
 import asyncio
+import random
 
 addresses = {
     "inited":Address("0x100004", 'u16'),# initialized if value is 0x24CA
@@ -34,6 +35,8 @@ addresses = {
     "p2_powercount":Address("0x10845e",'u8'),
     "p1_character":Address("0x108171",'u8'),
     "p2_character":Address("0x108371",'u8'),
+    "p1_wins":Address("0x10A85E",'u8'),
+    "p2_wins":Address("0x10A868",'u8'),
 }
 
 class IOPorts:
@@ -43,44 +46,69 @@ class IOPorts:
     COIN2 = IOPort(tag=":AUDIO_COIN", mask=2)
     SERVICE1 = IOPort(tag=":AUDIO_COIN", mask=4)
     SERVICE = IOPort(tag=":TEST", mask=128)
-    P1_JOYSTICK_UP = IOPort(tag=":edge:joy:JOY1", mask=1)
-    P1_JOYSTICK_DOWN = IOPort(tag=":edge:joy:JOY1", mask=2)
-    P1_JOYSTICK_LEFT = IOPort(tag=":edge:joy:JOY1", mask=4)
-    P1_JOYSTICK_RIGHT = IOPort(tag=":edge:joy:JOY1", mask=8)
-    P1_BUTTON1 = IOPort(tag=":edge:joy:JOY1", mask=16)
-    P1_BUTTON2 = IOPort(tag=":edge:joy:JOY1", mask=32)
-    P1_BUTTON3 = IOPort(tag=":edge:joy:JOY1", mask=64)
-    P1_BUTTON4 = IOPort(tag=":edge:joy:JOY1", mask=128)
-    P2_JOYSTICK_UP = IOPort(tag=":edge:joy:JOY2", mask=1)
-    P2_JOYSTICK_DOWN = IOPort(tag=":edge:joy:JOY2", mask=2)
-    P2_JOYSTICK_LEFT = IOPort(tag=":edge:joy:JOY2", mask=4)
-    P2_JOYSTICK_RIGHT = IOPort(tag=":edge:joy:JOY2", mask=8)
-    P2_BUTTON1 = IOPort(tag=":edge:joy:JOY2", mask=16)
-    P2_BUTTON2 = IOPort(tag=":edge:joy:JOY2", mask=32)
-    P2_BUTTON3 = IOPort(tag=":edge:joy:JOY2", mask=64)
-    P2_BUTTON4 = IOPort(tag=":edge:joy:JOY2", mask=128)
+    P1_UP = IOPort(tag=":edge:joy:JOY1", mask=1)
+    P1_DOWN = IOPort(tag=":edge:joy:JOY1", mask=2)
+    P1_LEFT = IOPort(tag=":edge:joy:JOY1", mask=4)
+    P1_RIGHT = IOPort(tag=":edge:joy:JOY1", mask=8)
+    P1_A = IOPort(tag=":edge:joy:JOY1", mask=16)
+    P1_B = IOPort(tag=":edge:joy:JOY1", mask=32)
+    P1_C = IOPort(tag=":edge:joy:JOY1", mask=64)
+    P1_D = IOPort(tag=":edge:joy:JOY1", mask=128)
+    P2_UP = IOPort(tag=":edge:joy:JOY2", mask=1)
+    P2_DOWN = IOPort(tag=":edge:joy:JOY2", mask=2)
+    P2_LEFT = IOPort(tag=":edge:joy:JOY2", mask=4)
+    P2_RIGHT = IOPort(tag=":edge:joy:JOY2", mask=8)
+    P2_A = IOPort(tag=":edge:joy:JOY2", mask=16)
+    P2_B = IOPort(tag=":edge:joy:JOY2", mask=32)
+    P2_C = IOPort(tag=":edge:joy:JOY2", mask=64)
+    P2_D = IOPort(tag=":edge:joy:JOY2", mask=128)
 
 start_action_sequence:List[StepAction] = [
     #start game
     StepAction(20, [IOPorts.COIN1]),
     StepAction(20, [IOPorts.START1]),
-    StepAction(20, [IOPorts.P1_BUTTON1]),
-    StepAction(20, [IOPorts.P1_BUTTON1]),
-    StepAction(180, [IOPorts.P1_BUTTON1]),
-    StepAction(20, [IOPorts.P1_BUTTON1]),
+    StepAction(20, [IOPorts.P1_A]),
+    StepAction(20, [IOPorts.P1_A]),
+    StepAction(180, [IOPorts.P1_A]),
+    StepAction(20, [IOPorts.P1_A]),
     #start select hero
-    StepAction(10, [IOPorts.P1_BUTTON1]),
-    StepAction(10, [IOPorts.P1_BUTTON1]),
-    StepAction(10, [IOPorts.P1_BUTTON1]),
+    StepAction(10, [IOPorts.P1_A]),
+    StepAction(10, [IOPorts.P1_A]),
+    StepAction(10, [IOPorts.P1_A]),
     #start order
-    StepAction(350, [IOPorts.P1_BUTTON1]),
-    StepAction(10, [IOPorts.P1_BUTTON1]),
-    StepAction(10, [IOPorts.P1_BUTTON1]),
+    StepAction(350, [IOPorts.P1_A]),
+    StepAction(10, [IOPorts.P1_A]),
+    StepAction(10, [IOPorts.P1_A]),
+]
+
+move_actions = [
+    [],
+    [IOPorts.P1_UP],
+    [IOPorts.P1_DOWN],
+    [IOPorts.P1_LEFT], 
+    [IOPorts.P1_RIGHT],
+    [IOPorts.P1_UP, IOPorts.P1_LEFT],
+    [IOPorts.P1_DOWN, IOPorts.P1_LEFT],
+    [IOPorts.P1_UP, IOPorts.P1_RIGHT],
+    [IOPorts.P1_DOWN, IOPorts.P1_RIGHT],
+]
+
+attack_actions = [
+    [],
+    [IOPorts.P1_A],
+    [IOPorts.P1_B],
+    [IOPorts.P1_C], 
+    [IOPorts.P1_D],
+    [IOPorts.P1_A, IOPorts.P1_B],
+    [IOPorts.P1_C, IOPorts.P1_D],
+    [IOPorts.P1_A, IOPorts.P1_B, IOPorts.P1_C],
 ]
 
 class Kof98Env():
     def __init__(self,client:AsyncClient):
         self.client = client
+        self.check_point_path = os.path.abspath("./checkpoint").replace("\\","/")
+        self.wait_reset = 0
 
     async def start(self):
         self.client.send_memory_address(addresses)
@@ -88,40 +116,46 @@ class Kof98Env():
 
     async def do_start_steps(self, steps:List[StepAction]):
         while True:
-            data = await self.client.read_data()
-            self.client.send_actions([])
-            if data['inited'] == 0x24CA:
+            await self.client.wait_frames(1)
+            if self.client.data['inited'] == 0x24CA:
                 break
-        for step in steps:
-            for i in range(step.wait_frames):
-                data = await self.client.read_data()
-                self.client.send_actions([])
-            data = await self.client.read_data()
-            self.client.send_actions(step.actions)
 
-    def step(self, action):
-        self.client.send_actions([])
+        for step in steps:
+            await self.client.wait_frames(step.wait_frames)
+            await self.client.do_actions_and_read_data(step.actions)
+
+        while True:
+            await self.client.wait_frames(1)
+            if self.client.data['p1_health'] > 0:
+                break
+        
+        self.client.execute_lua_string(f'manager.machine:save("{self.check_point_path}")')
+
+    def step(self, action_codes):
+        move_code, attack_code = action_codes
+        self.client.do_actions(move_actions[move_code] + attack_actions[attack_code])
+        
+        terminated = False
+        if self.wait_reset > 0:
+            self.wait_reset -= 1
+        else:
+            terminated = self.client.data['p1_wins'] > 0 or self.client.data['p2_wins'] > 0
+        return [], 0, terminated, False, ''
 
     def reset(self, seed=None, options=None):
-        pass
-
-    def render(self):
-        pass
-
-    def close(self):
-        pass
+        self.client.execute_lua_string(f'manager.machine:load("{self.check_point_path}")')
+        self.wait_reset = 3
 
 async def main():
-
     # start server
     server = AsyncServer()
     await server.start()
 
-    client_num = 2
+    client_num = 10
 
     # start all console
     for i in range(client_num):
-        ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=True)
+        ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=i==0)
 
     # wait console connect to server
     clients = await server.wait_clients(client_num)
@@ -134,9 +168,13 @@ async def main():
     await asyncio.gather(*[env.start() for env in envs])
 
     while True:
-        await asyncio.gather(*[env.client.read_data() for env in envs])
         for env in envs:
-            env.step([])
+            rand_move_code = random.randint(0,len(move_actions)-1)
+            rand_attack_code = random.randint(0,len(attack_actions)-1)
+            observation, reward, terminated, _, info = env.step([rand_move_code, rand_attack_code])
+            if terminated:
+                env.reset()
+        await asyncio.gather(*[env.client.read_data() for env in envs])
 
 
 if __name__ == '__main__':

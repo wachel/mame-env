@@ -66,7 +66,8 @@ local function write_memory(content)
 end
 
 local function execute_lua_string(content)
-    loadstring(content)()
+    --log('execute_lua_string', content)
+    load(content)()
 end
 
 --send observation data to server
@@ -98,7 +99,7 @@ local function process_frame_done()
     while true do
         if msgid == MsgID_AddressInfo then
             set_mem_address(content)
-            send_mem_data()
+            --send_mem_data()
         elseif msgid == MsgID_WriteMemoryValue then
             write_memory(content)
         elseif msgid == MsgID_ExecuteLuaString then

@@ -10,10 +10,7 @@ class AsyncClient():
         self.reader = reader
         self.writer = writer
         self.index = index
-    
-    async def step(self, actions):
-        self.send_actions(actions)
-        return self.read_data()
+        self.data:Dict[str,int] = {}
 
     def send_buffer(self, msgID:str, content:bytes):
         assert(len(msgID)==4)
@@ -39,7 +36,7 @@ class AsyncClient():
         return received_data
 
     async def read_data(self):
-        data = {}
+        self.data = {}
         while True:
             buffer = await self.reader_read_length(8)
             msgid,size = struct.unpack("4sI", buffer) #get msgid and length
@@ -48,19 +45,26 @@ class AsyncClient():
             if msgid == 'DATA':
                 unpacked_data = struct.unpack(self.unpack_format, content)
                 for k,value in zip(self.addresses.keys(), unpacked_data):
-                    data[k] = value
-                return data
+                    self.data[k] = value
+                break
             else:
                 print(f'unknown msg {msgid}')
 
-    def send_actions(self, actions:List[IOPort]):
+    def do_actions(self, actions:List[IOPort]):
         action_buff = '|'.join([f'{act.tag}+{act.mask}' for act in actions])
         self.send_buffer('ACTS', action_buff)
     
-    def send_lua_string(self, lua_string):
+    def execute_lua_string(self, lua_string):
         self.send_buffer('ExLS', lua_string)
 
-    def send_write_memory(self, addr_fmt_val_list:List[Tuple[str,str,int]]):
+    def write_memory(self, addr_fmt_val_list:List[Tuple[str,str,int]]):
         buff = '|'.join([f'{address}+{fmt}+{value}' for address,fmt,value in addr_fmt_val_list])
         self.send_buffer('WMem', buff)
 
+    async def wait_frames(self, frame_num):
+        for i in range(frame_num):
+            await self.do_actions_and_read_data([])
+        
+    async def do_actions_and_read_data(self, actions):
+        self.do_actions(actions)
+        return await self.read_data()
