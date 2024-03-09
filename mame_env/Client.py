@@ -46,7 +46,6 @@ class AsyncClient():
                 unpacked_data = struct.unpack(self.unpack_format, content)
                 for k,value in zip(self.addresses.keys(), unpacked_data):
                     self.data[k] = value
-                print('time', self.data['time'])
                 break
             else:
                 print(f'unknown msg {msgid}')

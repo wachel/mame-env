@@ -78,7 +78,7 @@ attack_actions = [
     [IOPorts.P1_BUTTON1, IOPorts.P1_BUTTON2, IOPorts.P1_BUTTON3],
 ]
 
-class Kof98Env():
+class SF2Env():
     def __init__(self,client:AsyncClient):
         self.client = client
         self.check_point_path = os.path.abspath("./checkpoint").replace("\\","/")
@@ -130,9 +130,9 @@ async def main():
     # wait console connect to server
     clients = await server.wait_clients(client_num)
 
-    envs:List[Kof98Env] = []
+    envs:List[SF2Env] = []
     for client in clients:
-        env = Kof98Env(client)
+        env = SF2Env(client)
         envs.append(env)
     
     await asyncio.gather(*[env.start() for env in envs])
