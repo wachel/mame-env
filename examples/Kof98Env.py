@@ -151,11 +151,11 @@ async def main():
     server = AsyncServer()
     await server.start()
 
-    client_num = 10
+    client_num = 2
 
     # start all console
     for i in range(client_num):
-        ConsoleProcess('roms', 'kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=i==0)
+        ConsoleProcess(game_id='kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=i==0)
 
     # wait console connect to server
     clients = await server.wait_clients(client_num)

@@ -5,7 +5,7 @@ import logging
 import time
 
 class ConsoleProcess(object):
-    def __init__(self, roms_path, game_id, render=True, throttle=False, frame_skip=0, sound=False, mame_bin_path='mame', lua_script = 'bridge.lua', other_args = '', ip='127.0.0.1', port=12000):
+    def __init__(self, game_id, roms_path='', render=True, throttle=False, frame_skip=0, sound=False, mame_bin_path='mame', lua_script = 'bridge.lua', other_args = '', ip='127.0.0.1', port=12000):
         atexit.register(self.close)
         self.logger = logging.getLogger("Console")
 
@@ -14,10 +14,12 @@ class ConsoleProcess(object):
         env['SERVER_IP'] = ip
 
         mame_path = os.path.dirname(os.path.abspath(mame_bin_path))
-        lua_path = os.path.abspath('./lua')
-
-        command = f'{mame_bin_path} {game_id} -rompath "{os.path.abspath(roms_path)}" -skip_gameinfo -window -nomaximize -noverbose -nojoy'
+        lua_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lua')
+        command = f'{mame_bin_path} {game_id} -skip_gameinfo -window -nomaximize -noverbose -nojoy'
+        if roms_path != '' and roms_path != None:
+            command += f' -rompath "{os.path.abspath(roms_path)}"'
         command += f' -autoboot_script {lua_path}/{lua_script}'
+
         if not render:
             command += " -video none -seconds_to_run 10000000"
 
