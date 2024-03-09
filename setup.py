@@ -8,5 +8,6 @@ setup(
     author_email='wachel@163.com',
     description='Description of your project',
     packages=find_packages(),    
+    package_data={'src': ['lua/*.lua']},
     install_requires=[],
 )
