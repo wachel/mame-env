@@ -2,8 +2,7 @@
 MAME-Env is a Python library designed to create a virtual environment for MAME (Multiple Arcade Machine Emulator) games. It allows users to interact with MAME games programmatically and processing actions and reading data from the MAME emulator.It can be uesed for create custom environments for machine learning applications, such as reinforcement learning.
 
 # Features
-* Interactive Environment: Interact with MAME through a Python interface.
-* Compatibility with the Latest MAME Emulator: has been tested on MAME version 0.263
+* Interactive Environment: Interact with MAME through a Python interface,and compatibility with the Latest MAME(tested on 0.263)
 * Memory Access: Read and write memory addresses of the running game.
 * IO Control: Send input commands to the game, such as button presses and joystick movements.
 * Asynchronous Client and Server: Communicate with multiple MAME instances concurrently.
