@@ -11,6 +11,7 @@ class AsyncClient():
         self.writer = writer
         self.index = index
         self.data:Dict[str,int] = {}
+        self.wait_data = 0
 
     def send_buffer(self, msgID:str, content:bytes):
         assert(len(msgID)==4)
@@ -46,6 +47,8 @@ class AsyncClient():
                 unpacked_data = struct.unpack(self.unpack_format, content)
                 for k,value in zip(self.addresses.keys(), unpacked_data):
                     self.data[k] = value
+                self.wait_data -= 1
+                assert self.wait_data == 0, 'perform_actions and read_data must be pair'
                 break
             else:
                 print(f'unknown msg {msgid}')
@@ -53,6 +56,8 @@ class AsyncClient():
     def perform_actions(self, actions:List[IOPort]):
         action_buff = '|'.join([f'{act.tag}+{act.mask}' for act in actions])
         self.send_buffer('ACTS', action_buff)
+        self.wait_data += 1
+        assert self.wait_data == 1, 'perform_actions and read_data must be pair'
     
     def execute_lua_string(self, lua_string):
         self.send_buffer('ExLS', lua_string)

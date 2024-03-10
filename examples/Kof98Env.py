@@ -151,7 +151,7 @@ async def main():
     server = AsyncServer()
     await server.start()
 
-    client_num = 2
+    client_num = 1
 
     # start all console
     for i in range(client_num):
@@ -175,6 +175,7 @@ async def main():
             if terminated:
                 env.reset()
         await asyncio.gather(*[env.client.read_data() for env in envs])
+        #await asyncio.sleep(0.001)
 
 
 if __name__ == '__main__':

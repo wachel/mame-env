@@ -99,7 +99,6 @@ local function process_frame_done()
     while true do
         if msgid == MsgID_AddressInfo then
             set_mem_address(content)
-            --send_mem_data()
         elseif msgid == MsgID_WriteMemoryValue then
             write_memory(content)
         elseif msgid == MsgID_ExecuteLuaString then
