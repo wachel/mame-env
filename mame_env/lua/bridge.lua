@@ -46,6 +46,7 @@ local function set_mem_address(content)
         u16 = {read_func="read_u16", format = "I2"},
         s16 = {read_func="read_i16", format = "i2"},
     }
+    mem_address = {}
     for addr_info in string.gmatch(content, "[^|]+") do
         local name, address, fmt = string.match(addr_info, "([^,]+),([^,]+),([^,]+)")
         table.insert(mem_address, {name = name, address = tonumber(address), read_func=map[fmt].read_func, format=map[fmt].format})
