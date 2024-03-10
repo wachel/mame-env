@@ -9,7 +9,7 @@ MAME-Env is a Python library designed to create a virtual environment for MAME (
 * Lua Script Execution: Execute Lua scripts within the MAME environment.
 
 # Installation
-To install MAME-Env, simply clone this repository and install the required dependencies:
+To install MAME-Env, simply clone this repository. No third-party dependencies are required. It has been tested on Windows 10 with Python 3.9.
 
 ## File Descriptions
 - `BaseType.py`: Contains some basic data type definitions, such as `DataType`, `Address`, `IOPort`, and `StepAction`.
