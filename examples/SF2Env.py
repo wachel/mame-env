@@ -91,8 +91,8 @@ class SF2Env():
     async def do_start_steps(self, steps:List[StepAction]):
         for step in steps:
             await self.client.wait_frames(step.wait_frames)
-            await self.client.do_actions_and_read_data(step.actions)
-            await self.client.do_actions_and_read_data(step.actions)
+            await self.client.perform_actions_and_read_data(step.actions)
+            await self.client.perform_actions_and_read_data(step.actions)
 
         while True:
             await self.client.wait_frames(1)
@@ -103,7 +103,7 @@ class SF2Env():
 
     def step(self, action_codes):
         move_code, attack_code = action_codes
-        self.client.do_actions(move_actions[move_code] + attack_actions[attack_code])
+        self.client.perform_actions(move_actions[move_code] + attack_actions[attack_code])
         
         terminated = False
         if self.wait_reset > 0:

@@ -50,7 +50,7 @@ class AsyncClient():
             else:
                 print(f'unknown msg {msgid}')
 
-    def do_actions(self, actions:List[IOPort]):
+    def perform_actions(self, actions:List[IOPort]):
         action_buff = '|'.join([f'{act.tag}+{act.mask}' for act in actions])
         self.send_buffer('ACTS', action_buff)
     
@@ -63,8 +63,8 @@ class AsyncClient():
 
     async def wait_frames(self, frame_num):
         for i in range(frame_num):
-            await self.do_actions_and_read_data([])
+            await self.perform_actions_and_read_data([])
         
-    async def do_actions_and_read_data(self, actions):
-        self.do_actions(actions)
+    async def perform_actions_and_read_data(self, actions):
+        self.perform_actions(actions)
         return await self.read_data()
