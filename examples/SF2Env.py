@@ -146,6 +146,7 @@ async def main():
                 env.reset()
         await asyncio.gather(*[env.client.read_data() for env in envs])
 
+    server.stop()
 
 if __name__ == '__main__':
     asyncio.run(main())

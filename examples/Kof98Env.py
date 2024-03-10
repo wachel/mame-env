@@ -149,7 +149,7 @@ class Kof98Env():
 async def main():
     # start server
     server = AsyncServer()
-    await server.start()
+    await server.start(
 
     client_num = 1
 
