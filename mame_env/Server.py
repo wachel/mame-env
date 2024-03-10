@@ -1,7 +1,9 @@
 import asyncio
+import threading
 from typing import List,Tuple
-from .Client import AsyncClient
+from .Client import AsyncClient, SocketClient
 from asyncio import StreamWriter, StreamReader
+import socket
 
 class AsyncServer:
     def __init__(self, host='127.0.0.1', port=12001):
@@ -29,3 +31,25 @@ class AsyncServer:
         for i,(reader, writer) in enumerate(self.clients_connects):
             clients.append(AsyncClient(i, reader, writer))
         return clients
+    
+class SocketServer:
+    def __init__(self, host='127.0.0.1', port=12001):
+        self.host = host
+        self.port = port
+        self.clients_connects:List[socket.socket] = []
+    
+    def start(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind((self.host, self.port))
+        self.server.listen(5)
+    
+    def stop(self):
+        self.server.close()
+
+    def wait_clients(self, total_num)->List[AsyncClient]:
+        clients = []
+        for i in range(total_num):
+            client_socket, addr = self.server.accept()
+            clients.append(SocketClient(i, client_socket))
+        return clients
+    

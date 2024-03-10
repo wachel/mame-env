@@ -5,11 +5,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import time
 from typing import List
 from mame_env.Console import ConsoleProcess
-from mame_env.Client import AsyncClient
-from mame_env.Server import AsyncServer
+from mame_env.Client import AsyncClient, SocketClient
+from mame_env.Server import AsyncServer, SocketServer
 from mame_env.BaseType import Address, IOPort, StepAction
-import asyncio
 import random
+import concurrent.futures
 
 addresses = {
     "inited":Address("0x100004", 'u16'),# initialized if value is 0x24CA
@@ -105,27 +105,27 @@ attack_actions = [
 ]
 
 class Kof98Env():
-    def __init__(self,client:AsyncClient):
+    def __init__(self,client:SocketClient):
         self.client = client
         self.check_point_path = os.path.abspath("./checkpoint").replace("\\","/")
         self.wait_reset = 0
 
-    async def start(self):
+    def start(self):
         self.client.send_memory_address(addresses)
-        await self.do_start_steps(start_action_sequence)
+        self.do_start_steps(start_action_sequence)
 
-    async def do_start_steps(self, steps:List[StepAction]):
+    def do_start_steps(self, steps:List[StepAction]):
         while True:
-            await self.client.wait_frames(1)
+            self.client.wait_frames(1)
             if self.client.data['inited'] == 0x24CA:
                 break
 
         for step in steps:
-            await self.client.wait_frames(step.wait_frames)
-            await self.client.perform_actions_and_read_data(step.actions)
+            self.client.wait_frames(step.wait_frames)
+            self.client.perform_actions_and_read_data(step.actions)
 
         while True:
-            await self.client.wait_frames(1)
+            self.client.wait_frames(1)
             if self.client.data['p1_health'] > 0:
                 break
         
@@ -146,26 +146,30 @@ class Kof98Env():
         self.client.execute_lua_string(f'manager.machine:load("{self.check_point_path}")')
         self.wait_reset = 3
 
-async def main():
-    # start server
-    server = AsyncServer()
-    await server.start(
 
-    client_num = 1
+if __name__ == '__main__':
+    # start server
+    server = SocketServer()
+    server.start()
+
+    client_num = 2
 
     # start all console
     for i in range(client_num):
-        ConsoleProcess(game_id='kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=i==0)
+        ConsoleProcess(game_id='kof98', mame_bin_path='G:\games\mame0256b_64bit\mame.exe', port=server.port, throttle=False, render=True)
 
     # wait console connect to server
-    clients = await server.wait_clients(client_num)
+    clients = server.wait_clients(client_num)
 
     envs:List[Kof98Env] = []
     for client in clients:
         env = Kof98Env(client)
         envs.append(env)
-    
-    await asyncio.gather(*[env.start() for env in envs])
+
+    def start_all(env):
+        return env.start()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(start_all, envs))
 
     while True:
         for env in envs:
@@ -174,9 +178,8 @@ async def main():
             observation, reward, terminated, _, info = env.step([rand_move_code, rand_attack_code])
             if terminated:
                 env.reset()
-        await asyncio.gather(*[env.client.read_data() for env in envs])
+        for env in envs:
+            env.client.read_data()
         #await asyncio.sleep(0.001)
 
-
-if __name__ == '__main__':
-    asyncio.run(main())
+    server.stop()
