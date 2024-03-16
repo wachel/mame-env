@@ -1,3 +1,4 @@
+
 function log(...)
     local args = {...}
     local message = "[lua]"
@@ -11,6 +12,15 @@ end
 local socket = emu.file("rw")
 socket:open("socket." .. os.getenv("SERVER_IP") .. ":" .. os.getenv("SERVER_PORT"))
 
+local current_buffer = ""
+local mem_address = {}
+local releaseQueue = {}
+local frame_ratio = 3
+
+local ioport = manager.machine.ioport
+local screen = manager.machine.screens:at(1)
+
+
 MsgID_AddressInfo = "ADDR"
 MsgID_MemoryData = "DATA"
 MsgID_Actions = "ACTS"
@@ -21,24 +31,26 @@ local function send(msgid, content)
     socket:write(string.pack("c4I4", msgid, string.len(content)) .. content)
 end
 
-local current_buffer = ""
+
 local function receive()
     repeat
         local read = socket:read(100)
         current_buffer = current_buffer .. read
     until #read == 0
-    if string.len(current_buffer) >= 8 then
+
+    local result = {}
+    while string.len(current_buffer) >= 8 do
         local msgid,len = string.unpack("c4I4", current_buffer)
         if string.len(current_buffer) >= 8 + len then
             local content = string.sub(current_buffer, 9,9+len-1)
             current_buffer = string.sub(current_buffer, 9+len)
-            return msgid, content
+            --return msgid, content
+            table.insert(result, {msgid = msgid, content = content})
         end
     end
-    return nil,""
+    return result
 end
 
-local mem_address = {}
 local function set_mem_address(content)
     local map = {
         u8 = {read_func="read_u8", format = "I1"},
@@ -82,11 +94,11 @@ local function send_mem_data()
     send(MsgID_MemoryData, binary_string)
 end
 
-releaseQueue = {}
 
 local function process_frame_done()
-    local ioport = manager.machine.ioport
-    local screen = manager.machine.screens:at(1)
+    if screen:frame_number() % frame_ratio ~= 0 then 
+        return
+    end
 
     --release input
     for i=1,#releaseQueue do
@@ -96,25 +108,28 @@ local function process_frame_done()
     releaseQueue = {};
 
     --read action from server
-    msgid, content = receive()
-    while true do
-        if msgid == MsgID_AddressInfo then
-            set_mem_address(content)
-        elseif msgid == MsgID_WriteMemoryValue then
-            write_memory(content)
-        elseif msgid == MsgID_ExecuteLuaString then
-            execute_lua_string(content)
-        elseif msgid == MsgID_Actions then--apply input
-            for tag_mask in string.gmatch(content, "[^|]+") do
-                local tag, mask = string.match(tag_mask, "(.-)%+(.+)")
-                ioport.ports[tag]:field(mask):set_value(1)
-                table.insert(releaseQueue, {tag, mask}); --record for release next frame
+    local received_action = false
+    while not received_action do
+        local msgs = receive()
+        for i, msg in ipairs(msgs) do
+            local msgid = msg.msgid
+            local content = msg.content
+            if msgid == MsgID_AddressInfo then
+                set_mem_address(content)
+            elseif msgid == MsgID_WriteMemoryValue then
+                write_memory(content)
+            elseif msgid == MsgID_ExecuteLuaString then
+                execute_lua_string(content)
+            elseif msgid == MsgID_Actions then--apply input
+                for tag_mask in string.gmatch(content, "[^|]+") do
+                    local tag, mask = string.match(tag_mask, "(.-)%+(.+)")
+                    ioport.ports[tag]:field(mask):set_value(1)
+                    table.insert(releaseQueue, {tag, mask}); --record for release next frame
+                end
+                send_mem_data()
+                received_action = true
             end
-            send_mem_data()
-            break
         end
-        --pipe:read(1)
-        msgid, content = receive()
     end
 end
 
